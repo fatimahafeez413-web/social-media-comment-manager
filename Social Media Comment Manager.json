@@ -1,0 +1,278 @@
+{
+  "name": "Social Media Comment Manager",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "documentId": {
+          "__rl": true,
+          "value": "1ir_Pz63DRIczIw0L_6soY9g8T7F2Wd1umSnlUT7E7zI",
+          "mode": "list",
+          "cachedResultName": "Comment Manger",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ir_Pz63DRIczIw0L_6soY9g8T7F2Wd1umSnlUT7E7zI/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 63131687,
+          "mode": "list",
+          "cachedResultName": "sample_comments",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ir_Pz63DRIczIw0L_6soY9g8T7F2Wd1umSnlUT7E7zI/edit#gid=63131687"
+        },
+        "options": {}
+      },
+      "id": "95c1673c-7091-49f8-9ed6-41dc87bccaac",
+      "name": "Google Sheets Trigger",
+      "type": "n8n-nodes-base.googleSheetsTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "googleSheetsTriggerOAuth2Api": {
+          "id": "N9ejKocQj4Az5K3B",
+          "name": "Google Sheets Trigger account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "models/gemini-3-flash-preview"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You manage comments for Sweet Crumbs Bakery, a home bakery with a warm, friendly tone.\n\nFor this comment, respond with JSON only, no other text:\n{\n  \"category\": \"Question | Praise | Complaint | Spam | Urgent\",\n  \"suggested_reply\": \"a short on-brand reply, or null if Spam or Urgent\",\n  \"needs_human_review\": true or false\n}\n\nRules:\n- Never invent prices, policies, or promises.\n- Any Complaint or Urgent comment must have needs_human_review set to true.\n- Keep replies short, warm, and never robotic.\n\nComment: {{ $json.comment_text }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "59f36bed-4014-48aa-ac94-ccc626c3a4c9",
+      "name": "Message a model",
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        224,
+        0
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": null,
+          "name": "",
+          "__aiGatewayManaged": true
+        }
+      }
+    },
+    {
+      "parameters": {
+        "language": "pythonNative",
+        "pythonCode": "def extract_field(text, field_name):\n    marker = '\"' + field_name + '\"'\n    idx = text.find(marker)\n    if idx == -1:\n        return None\n    idx = text.find(\":\", idx) + 1\n    while text[idx] in \" \\n\\t\":\n        idx += 1\n    if text[idx] == '\"':\n        idx += 1\n        end = idx\n        while text[end] != '\"' or text[end - 1] == \"\\\\\":\n            end += 1\n        return text[idx:end].replace('\\\\\"', '\"').replace(\"\\\\n\", \"\\n\")\n    else:\n        end = idx\n        while text[end] not in \",}\\n\":\n            end += 1\n        value = text[idx:end].strip()\n        if value == \"true\":\n            return True\n        if value == \"false\":\n            return False\n        if value == \"null\":\n            return None\n        return value\n\nfor item in _items:\n    raw_text = item[\"json\"][\"content\"][\"parts\"][0][\"text\"]\n\n    category = extract_field(raw_text, \"category\")\n    suggested_reply = extract_field(raw_text, \"suggested_reply\")\n    needs_review = extract_field(raw_text, \"needs_human_review\")\n\n    if category is None:\n        category = \"Needs Review\"\n        needs_review = True\n\n    item[\"json\"][\"category\"] = category\n    item[\"json\"][\"suggested_reply\"] = suggested_reply\n    item[\"json\"][\"needs_human_review\"] = needs_review\n\nreturn _items"
+      },
+      "id": "832c22f2-4caa-4aeb-9b16-8de27c4c609f",
+      "name": "Code in Python",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        592,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1ir_Pz63DRIczIw0L_6soY9g8T7F2Wd1umSnlUT7E7zI/edit?gid=63131687#gid=63131687",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1ir_Pz63DRIczIw0L_6soY9g8T7F2Wd1umSnlUT7E7zI/edit?gid=63131687#gid=63131687",
+          "mode": "url"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "comment_id": "={{ $('Google Sheets Trigger').item.json.comment_id }}",
+            "category": "={{ $json.category }}\n",
+            "suggested_reply": "={{ $json.suggested_reply }}",
+            "needs_human_review": "={{ $json.needs_human_review }}"
+          },
+          "matchingColumns": [
+            "comment_id"
+          ],
+          "schema": [
+            {
+              "id": "comment_id",
+              "displayName": "comment_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "customer_name",
+              "displayName": "customer_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "comment_text",
+              "displayName": "comment_text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "category",
+              "displayName": "category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "suggested_reply",
+              "displayName": "suggested_reply",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "needs_human_review",
+              "displayName": "needs_human_review",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "content",
+              "displayName": "content",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "finishReason",
+              "displayName": "finishReason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "6c117d42-c30a-4939-8697-b02733c4359d",
+      "name": "Update row in sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        816,
+        0
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "uZqZUvNw1HPctDsL",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Google Sheets Trigger": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Code in Python",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in Python": {
+      "main": [
+        [
+          {
+            "node": "Update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "cf700c5b-e3d8-4a1e-89cc-cc3e5d2678ab",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "29da7b2fe4745412fb7c023fa8ed088524a97150147a955914371b6f546eded9"
+  },
+  "nodeGroups": [],
+  "id": "I6LOc4PW2943iPLZ",
+  "tags": []
+}
